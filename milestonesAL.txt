@@ -1,4 +1,16 @@
-10 pts - 
-10 pts - 
-10 pts - 
-10 pts -
+15 pts - Create binary tree (decision tree)
+  5 pts - Use Gini impurity metric to select attribute to split data
+  5 pts - Split data into subsets
+  5 pts - Recursively repeat process to find leaf nodes
+5 pts - Create map of patient to disease probability
+10 pts - Create python decision tree
+5 pts - Compare efficiency (time and memory) of python and C++ trees
+5 pts - Create user interaction where user asks for patient probability data
+
+
+Challenge Report
+----------------
+This challenge went well. It was a lot of research and trying to figure out which ideas
+would be viable for a final project. We settled on creating a python and custom c++ decision
+tree to determine the probability that a patient has heart disease, and comparing the two 
+approaches to see which is most efficient. 
