@@ -1,0 +1,4 @@
+10 points - Python program gives correct output
+10 points - C++ program gives correct output
+10 points - Splitting of tree is performed reasonably
+10 points - Names are included, reasonable variable names, and good commenting.
