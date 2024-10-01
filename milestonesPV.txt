@@ -1,4 +1,4 @@
-15 Points - Create binary tree/decision tree
+
 10 Points - C++ program with corrrect output
 10 points - Python program with correct output
 5 points  - Comparison of performance of each program, including which is optimal for the task.
