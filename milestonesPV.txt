@@ -1,5 +1,5 @@
 
 15 Points - C++ program with corrrect output
 15 points - Python program with correct output
-5  points - 
+5  points - Well done user interaction to run the program
 5  points - Comparison of performance of each program, including which is optimal for the task.
