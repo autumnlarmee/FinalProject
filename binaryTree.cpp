@@ -128,7 +128,9 @@ int classifier(vector<int>& variable, vector<int>& TenYearCHD) {
     }
     auto p = minmax_element(nonpredictor.begin(), nonpredictor.end());
     auto t = minmax_element(predictor.begin(),predictor.end());
-    double result = (*p.second + *t.first) / 2;
+    //cout << *p.second << " " << *t.first << endl;
+    double sum = *p.second + *t.first;
+    double result = sum / 2;
     return result;
 }
 
@@ -141,10 +143,27 @@ int main() {
     cigsPerDay, BPMeds, prevalentStroke, prevalentHyp,
     diabetes, totChol, sysBP, diaBP, BMI, heartRate,
     glucose, TenYearCHD);
+    //classifiers
+    int cGender, cAge, cEducation, cCurrentSmoker, 
+    cCigsPerDay, cBPMeds, cPrevalentStroke, cPrevalentHyp,
+    cDiabetes, cTotChol, cSysByp, cDiaBP, cBMI, cHeartRate, 
+    cGlucose, cTenYearCHD;
+    
+    cGender = classifier(gender, TenYearCHD);
+    Node* firstNode = createNode(cGender);
 
-    for (int i = 0; i < gender.size(); i++) {
-        cout << gender[i] << " ";
-    }
+    cAge = classifier(age, TenYearCHD);
+    Node* secondNode = createNode(cAge);
+    Node* thirdNode = createNode(cAge);
+    firstNode->left = secondNode;
+    firstNode->right = thirdNode;
+
+    cEducation = classifier(education, TenYearCHD);
+    Node* fourthNode = createNode(cEducation);
+    Node* fifthNode = createNode(cEducation);
+    //secondNode->left = 
+    Node* sixthNode = createNode(cEducation);
+    Node* seventhNode = createNode(cEducation);
 
 }
 
