@@ -193,6 +193,20 @@ void printLevelOrder(Node* root) {
     cout << endl;
 }
 
+int predict(Node* root, vector<double>& userInput) {
+    int score = 0;
+    for (int i = 0; i < userInput.size() - 1; i++) {
+        if (userInput[i] > root->data) {
+            score += 1;
+            root = root->right;
+        }
+        else {
+            root = root->left;
+        }
+    }
+    return score;
+}
+
 int main() {
     vector<int> gender, age, education, currentSmoker, 
     cigsPerDay, BPMeds, prevalentStroke, prevalentHyp,
@@ -219,9 +233,64 @@ int main() {
 
     //interact with user
     string name;
-    cout << "Hello patient! Enter name: ";
+    double iGender, iAge, iEducation, iCurrentSmoker, iCigsPerDay, iBPMeds,
+    iPrevalentStroke, iPrevalentHyp, iDiabetes, iTotChol, iSysBP, iDiaBP, 
+    iBMI, iHeartRate, iGlucose, iTenYearCHD;
+    vector<double> userInput;
+
+    cout << "Enter name: ";
     cin >> name;
-    
+    cout << "M or F? (enter 1 or 0): ";
+    cin >> iGender;
+    userInput.push_back(iGender);
+    cout << "Enter age: ";
+    cin >> iAge;
+    userInput.push_back(iAge);
+    cout << "Enter education level (1-4): ";
+    cin >> iEducation;
+    userInput.push_back(iEducation);
+    cout << "Are you a current smoker? (enter 1 or 0): ";
+    cin >> iCurrentSmoker;
+    userInput.push_back(iCurrentSmoker);
+    cout << "How many cigs do you smoke per day? ";
+    cin >> iCigsPerDay;
+    userInput.push_back(iCigsPerDay);
+    cout << "Are you on blood pressure meds? (enter 1 or 0): ";
+    cin >> iBPMeds;
+    userInput.push_back(iBPMeds);
+    cout << "Do you have prevalent strokes? (enter 1 or 0): ";
+    cin >> iPrevalentStroke;
+    userInput.push_back(iPrevalentStroke);
+    cout << "Do you have prevalent hypertension? (enter 1 or 0): ";
+    cin >> iPrevalentHyp;
+    userInput.push_back(iPrevalentHyp);
+    cout << "Do you have diabetes? (enter 1 or 0): ";
+    cin >> iDiabetes;
+    userInput.push_back(iDiabetes);
+    cout << "What is your total cholesterol? (50-400): ";
+    cin >> iTotChol;
+    userInput.push_back(iTotChol);
+    cout << "What is your systolic blood pressure? (50-200): ";
+    cin >> iSysBP;
+    userInput.push_back(iSysBP);
+    cout << "What is your diastolic blood pressure? (40-200): ";
+    cin >> iDiaBP;
+    userInput.push_back(iDiaBP);
+    cout << "What is your body mass index? (15-50): ";
+    cin >> iBMI;
+    userInput.push_back(iBMI);
+    cout << "What is your heart rate? (20-200): ";
+    cin >> iHeartRate;
+    userInput.push_back(iHeartRate);
+    cout << "What is your glucose level? (50-200): ";
+    cin >> iGlucose;
+    userInput.push_back(iGlucose);
+
+    cout << endl << "Predicting chances of coronary heart disease within the next 10 years..." << endl << endl;
+    int score = predict(root, userInput);
+    cout << "Your chances of CHD are: " << (score / 15) * 100 << "%" << endl;
 }
+
+
 
 
