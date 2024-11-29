@@ -128,6 +128,61 @@ vector<int>& glucose, vector<int>& TenYearCHD, vector<vector<int>>& variables)
     variables.push_back(glucose);
 }
 
+/*returns a classifier value (value to compare to) for the best split on this variable, and a value
+  for the quality of this variable's best split (in case we want to consider multiple variables to split on), respectively. 
+  The higher the latter value, the worse, which is all that is relevant about that value.
+  If the list of data is too small for the algorithm to desire to make a split, both elements of the pair will be -1.
+
+  We do it by evaluating all possible ways to split the data into two groups. For each split, we compare
+  the average of TenYearCHD's in each group to each of the individual TenYearCHD's in that group, and use 
+  this evaluation from both groups to try to determine how unambiguous the interpretation of TenYearCHD correlation 
+  of both groups will be if we make this split. We choose the best split for our single-variable list of data in this way,
+  and return where the split should be made.
+*/
+pair<double, double> classifierSingleVar(vector<int>& variable, vector<int>& TenYearCHD) {
+    int MIN_SPLIT_SIZE = 5; //min size for each of the two groups the split would leave.
+
+    int patientsN = TenYearCHD.size();
+
+    pair<double, double> bestScoreAndClassifier = {-1, -1};
+    for(int spliti=MIN_SPLIT_SIZE; spliti<=patientsN-2-MIN_SPLIT_SIZE; spliti++){ //we split the total group between two items. spliti is the left item's index
+        vector<int> group1(TenYearCHD.begin(), TenYearCHD.begin() + spliti + 1);
+        vector<int> group2(TenYearCHD.begin() + spliti + 1, TenYearCHD.end());
+        double splitBadness = ambiguityMetric(group1) + ambiguityMetric(group2);
+        if(bestScoreAndClassifier.first == -1 || (splitBadness < bestScoreAndClassifier.first)){
+            bestScoreAndClassifier = {splitBadness, (TenYearCHD.at(spliti) + TenYearCHD.at(spliti + 1)) / (double) (2)};
+        }
+    }
+
+    return {-1, -1}; //should exclusively occur if patientsN < MIN_SPLIT_SIZE * 2 ???
+
+}
+
+/*
+Used when determining splits, for evaluating how well the split splits us on something potentially
+real vs something uncorellated and ambiguous. Call on a list of target variables. High return value is bad, low is good.
+*/
+double ambiguityMetric(vector<int> group){
+    // Uses mean squared error.
+
+    // avg of set
+    double avg;
+    for(int i=0; i<group.size(); i++){
+        avg += group.at(i);
+    }
+    avg = avg / (double) (group.size());
+
+    // sum of squared differences between element and set average
+    double sum = 0;
+    for(int i=0; i<group.size(); i++){
+        double a = group.at(i) - avg;
+        sum += a * a;
+    }
+    return sum / group.size();
+}
+
+
+/*
 //returns a classifier value (value to compare to)
 double classifier(vector<int>& variable, vector<int>& TenYearCHD) {
     vector<int> predictor, nonpredictor;
@@ -149,6 +204,7 @@ double classifier(vector<int>& variable, vector<int>& TenYearCHD) {
     double result = sum / 2;
     return result;
 }
+*/
 
 Node* createTree(int depth, vector<int>& TenYearCHD, vector<vector<int>>& variables, int counter) {
     if (depth == 0) {
@@ -290,7 +346,6 @@ int main() {
     int score = predict(root, userInput);
     cout << "Your chances of CHD are: " << (score / 15) * 100 << "%" << endl;
 }
-
 
 
 
