@@ -9,13 +9,13 @@ using namespace std;
 
 //data will be the deciding factor
 struct Node {
-    int data;
+    double data;
     Node* left;
     Node* right;
 };
 
 //create new node
-Node* createNode(int classifier) {
+Node* createNode(double classifier) {
     Node* newNode = new Node();
     newNode->data = classifier;
     newNode->left = newNode->right = nullptr;
@@ -129,7 +129,7 @@ vector<int>& glucose, vector<int>& TenYearCHD, vector<vector<int>>& variables)
 }
 
 //returns a classifier value (value to compare to)
-int classifier(vector<int>& variable, vector<int>& TenYearCHD) {
+double classifier(vector<int>& variable, vector<int>& TenYearCHD) {
     vector<int> predictor, nonpredictor;
     //for each patient in training data set
     for (int i = 0; i < variable.size(); i++) {
@@ -154,20 +154,13 @@ Node* createTree(int depth, vector<int>& TenYearCHD, vector<vector<int>>& variab
     if (depth == 0) {
         return nullptr;
     }
-    int iClassifier = classifier(variables[counter], TenYearCHD);
+    double iClassifier = classifier(variables[counter], TenYearCHD);
     Node* node = createNode(iClassifier);
 
     //decrease depth, increase counter (next variable on next level)
     node->left = createTree(depth - 1, TenYearCHD, variables, counter + 1);
     node->right = createTree(depth - 1, TenYearCHD, variables, counter + 1);
     return node;
-    //for each node in this level
-    /*for (int i = 0; i < 2**counter; i++) {
-        int iClassifier = classifier(variables[counter], TenYearCHD);
-        Node* node = new Node(iClassifier);
-        node->left = 
-    }*/
-
 }
 
 void printInOrder(Node* root) {
@@ -206,11 +199,14 @@ int main() {
     diabetes, totChol, sysBP, diaBP, BMI, heartRate,
     glucose, TenYearCHD;
     vector<vector<int>> variables;
+
+    //read in data to vectors
     readData(gender, age, education, currentSmoker, 
     cigsPerDay, BPMeds, prevalentStroke, prevalentHyp,
     diabetes, totChol, sysBP, diaBP, BMI, heartRate,
     glucose, TenYearCHD, variables);
-    //classifiers
+
+    //classifiers and constants
     int cGender, cAge, cEducation, cCurrentSmoker, 
     cCigsPerDay, cBPMeds, cPrevalentStroke, cPrevalentHyp,
     cDiabetes, cTotChol, cSysByp, cDiaBP, cBMI, cHeartRate, 
@@ -221,42 +217,11 @@ int main() {
     Node* root = createTree(depth, TenYearCHD, variables, counter);
     printLevelOrder(root);
 
-    /*cGender = classifier(gender, TenYearCHD);
-    Node* firstNode = createNode(cGender);
-
-    cAge = classifier(age, TenYearCHD);
-    Node* secondNode = createNode(cAge);
-    Node* thirdNode = createNode(cAge);
-    firstNode->left = secondNode;
-    firstNode->right = thirdNode;
-
-    cEducation = classifier(education, TenYearCHD);
-    Node* fourthNode = createNode(cEducation);
-    Node* fifthNode = createNode(cEducation);
-    secondNode->left = fourthNode;
-    secondNode->right = fifthNode;
-    Node* sixthNode = createNode(cEducation);
-    Node* seventhNode = createNode(cEducation);
-    thirdNode->left = sixthNode;
-    thirdNode->right = seventhNode;
-
-    cCurrentSmoker = classifier(currentSmoker, TenYearCHD);
-    Node* eigthNode = createNode(cCurrentSmoker);
-    Node* ninthNode = createNode(cCurrentSmoker);
-    fourthNode->left = eigthNode;
-    fourthNode->right = ninthNode;
-    Node* tenthNode = createNode(cCurrentSmoker);
-    Node* eleventhNode = createNode(cCurrentSmoker);
-    fifthNode->left = tenthNode;
-    fifthNode->right = eleventhNode;
-    Node* twelthNode = createNode(cCurrentSmoker);
-    Node* thirteenthNode = createNode(cCurrentSmoker);
-    sixthNode->left = twelthNode;
-    sixthNode->right = thirteenthNode;
-    Node* fourteenthNode = createNode(cCurrentSmoker);
-    Node* fifteenthNode = createNode(cCurrentSmoker);
-    seventhNode->left = fourteenthNode;
-    seventhNode->right = fifteenthNode;*/
+    //interact with user
+    string name;
+    cout << "Hello patient! Enter name: ";
+    cin >> name;
+    
 }
 
 
