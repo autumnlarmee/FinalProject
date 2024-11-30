@@ -1,3 +1,19 @@
+/*
+Explanation:
+very in-progress. It's based on the standard regression tree algorithm. You start with a node with all predictive data for all patients in it,
+and all target data for all patients. You brute force all variables and all positions in all variables to find the one that would make
+the best split, meaning, we calculate how well each split seems to say something about the data - how strongly correlated to one value for
+the target one half would be, and the other for the other half. Choose the best split like that... variable and point that makes best split.
+
+of course, it's recursive, so this is assuming we had not met some criteria for saying we're a leaf node yet. I'm saying it's when 
+we don't have more than a certain amount of data points in our node.
+
+Once our tree is done, branch nodes represent choices, and leaf nodes represent probability of CHD - because we take the average of the target
+variables left in the leaf node - 0's and 1's - and get a proportion of people in that leaf cohort (the result of narrowing down along lots
+of criteria we thought were good to differentiate by) who have TenYearCHD. So, that is an estimated probability when we are inputting our
+new patient on the console and asking for a probability.
+
+*/
 #include <iostream>
 #include <algorithm>
 #include <vector>
