@@ -7,18 +7,32 @@
 #include <queue>
 using namespace std;
 
-//data will be the deciding factor
+
 struct Node {
-    double data;
+    //classifier will be the deciding factor. This is like "age > 3.5?" val is the 3.5 number here, vari is the "age" specification.
+    // greater than (>), go to right node (>), less than (<), go to left node (<).
+    int classifiervari; /* -1 lets you know this is a leaf node. In this case, most other variables will likely become useless.
+                           TenYearCHDForPatientsHere will still be used to take an average as our estimated probability that a new patient
+                           reaching this node has TenYearCHD */
+    double classifierval;
+
     Node* left;
     Node* right;
+
+    //as we progress with tree generation, deepening down, narrowing down on additional specific qualities that are correlated with our target variable,
+    //we narrow down the patients at each node. These 2 vectors essentially represent smaller versions
+    //of our original csv file - the patients relevant to this node, after all of the splits before it.
+    vector<vector<int>> variablesForPatientsHere;
+    vector<int> TenYearCHDForPatientsHere;
 };
 
-//create new node
-Node* createNode(double classifier) {
+Node* createNode(int classifiervari, double classifierval, vector<vector<int>> variablesForPatientsHere, vector<int> TenYearCHDForPatientsHere) {
     Node* newNode = new Node();
-    newNode->data = classifier;
+    newNode->classifiervari = classifiervari;
+    newNode->classifierval = classifierval;
     newNode->left = newNode->right = nullptr;
+    newNode->variablesForPatientsHere = variablesForPatientsHere;
+    newNode->TenYearCHDForPatientsHere = TenYearCHDForPatientsHere;
     return newNode;
 }
 
@@ -128,39 +142,9 @@ vector<int>& glucose, vector<int>& TenYearCHD, vector<vector<int>>& variables)
     variables.push_back(glucose);
 }
 
-/*returns a classifier value (value to compare to) for the best split on this variable, and a value
-  for the quality of this variable's best split (in case we want to consider multiple variables to split on), respectively. 
-  The higher the latter value, the worse, which is all that is relevant about that value.
-  If the list of data is too small for the algorithm to desire to make a split, both elements of the pair will be -1.
-
-  We do it by evaluating all possible ways to split the data into two groups. For each split, we compare
-  the average of TenYearCHD's in each group to each of the individual TenYearCHD's in that group, and use 
-  this evaluation from both groups to try to determine how unambiguous the interpretation of TenYearCHD correlation 
-  of both groups will be if we make this split. We choose the best split for our single-variable list of data in this way,
-  and return where the split should be made.
-*/
-pair<double, double> classifierSingleVar(vector<int>& variable, vector<int>& TenYearCHD) {
-    int MIN_SPLIT_SIZE = 5; //min size for each of the two groups the split would leave.
-
-    int patientsN = TenYearCHD.size();
-
-    pair<double, double> bestScoreAndClassifier = {-1, -1};
-    for(int spliti=MIN_SPLIT_SIZE; spliti<=patientsN-2-MIN_SPLIT_SIZE; spliti++){ //we split the total group between two items. spliti is the left item's index
-        vector<int> group1(TenYearCHD.begin(), TenYearCHD.begin() + spliti + 1);
-        vector<int> group2(TenYearCHD.begin() + spliti + 1, TenYearCHD.end());
-        double splitBadness = ambiguityMetric(group1) + ambiguityMetric(group2);
-        if(bestScoreAndClassifier.first == -1 || (splitBadness < bestScoreAndClassifier.first)){
-            bestScoreAndClassifier = {splitBadness, (TenYearCHD.at(spliti) + TenYearCHD.at(spliti + 1)) / (double) (2)};
-        }
-    }
-
-    return {-1, -1}; //should exclusively occur if patientsN < MIN_SPLIT_SIZE * 2 ???
-
-}
-
 /*
 Used when determining splits, for evaluating how well the split splits us on something potentially
-real vs something uncorellated and ambiguous. Call on a list of target variables. High return value is bad, low is good.
+real vs something uncorellated and ambiguous. Call on a list of target variables. High value is bad, low is good.
 */
 double ambiguityMetric(vector<int> group){
     // Uses mean squared error.
@@ -181,6 +165,54 @@ double ambiguityMetric(vector<int> group){
     return sum / group.size();
 }
 
+/*returns a classifier value (value to compare to) for the best split on this variable, and a value
+  for the quality of this variable's best split (in case we want to consider multiple variables to split on), respectively. 
+  The higher the latter value, the worse, which is all that is relevant about that value.
+  If the list of data is too small for the algorithm to desire to make a split, both elements of the pair will be -1.
+
+  We do it by evaluating all possible ways to split the data into two groups. For each split, we compare
+  the average of TenYearCHD's in each group to each of the individual TenYearCHD's in that group, and use 
+  this evaluation from both groups to try to determine how unambiguous the interpretation of TenYearCHD correlation 
+  of both groups will be if we make this split. We choose the best split for our single-variable list of data in this way,
+  and return where the split should be made.
+*/
+pair<double, double> classifierSingleVar(vector<int>& variable, vector<int>& TenYearCHD) {
+    int MIN_SPLIT_SIZE = 5; //min size for each of the two groups the split would leave.
+
+    int patientsN = TenYearCHD.size();
+
+    pair<double, double> classifierAndBestScore = {-1, -1};
+    for(int spliti=MIN_SPLIT_SIZE; spliti<=patientsN-2-MIN_SPLIT_SIZE; spliti++){ //we split the total group between two items. spliti is the left item's index
+        vector<int> group1(TenYearCHD.begin(), TenYearCHD.begin() + spliti + 1);
+        vector<int> group2(TenYearCHD.begin() + spliti + 1, TenYearCHD.end());
+        double splitBadness = ambiguityMetric(group1) + ambiguityMetric(group2);
+        if(classifierAndBestScore.second == -1 || (splitBadness < classifierAndBestScore.second)){
+            classifierAndBestScore = {(TenYearCHD.at(spliti) + TenYearCHD.at(spliti + 1)) / (double) (2), splitBadness};
+        }
+    }
+    return classifierAndBestScore;
+
+}
+
+/*
+For branch nodes in our regression tree.
+Determines best variable and position to make a binary split on.
+Returns a classifier value to arrange a split around, and an index of which variable to split on, respectively.
+If no variables are splittable (not enough data points for any of them), you'll get back {-1, -1}.
+(That's when you would make the node you're calling this for a leaf node).
+*/
+pair<double, int> classifierMultiVar(vector<vector<int>>& vars, vector<int>& TenYearCHD){
+    /* iterate all variables, classifierSingleVar() them, return a classifier and var index for whatever var is smartest to split on according to
+       classifierSingleVar()s' badness scores. */
+    pair<int, pair<double, double>> bestVarToSplit = {-1, {-1, -1}}; // index of var, {classifier for its best split, badness of its best split}
+    for(int v=0; v<vars.size(); v++){
+        pair<double, double> classifierAndBestScore = classifierSingleVar(vars.at(v), TenYearCHD);
+        if(bestVarToSplit.first == -1 || (classifierAndBestScore.second < bestVarToSplit.second.second)){
+            bestVarToSplit = {v, classifierAndBestScore};
+        }
+    }
+    return {bestVarToSplit.second.first, bestVarToSplit.first};
+}
 
 /*
 //returns a classifier value (value to compare to)
@@ -206,23 +238,23 @@ double classifier(vector<int>& variable, vector<int>& TenYearCHD) {
 }
 */
 
-Node* createTree(int depth, vector<int>& TenYearCHD, vector<vector<int>>& variables, int counter) {
-    if (depth == 0) {
-        return nullptr;
-    }
-    double iClassifier = classifier(variables[counter], TenYearCHD);
-    Node* node = createNode(iClassifier);
+// Generate our tree. 
+Node* createTree(vector<int>& TenYearCHD, vector<vector<int>>& variables){
+    pair<double, int> question = classifierMultiVar(variables, TenYearCHD); // question at this node. "variable < or > a value?"
 
-    //decrease depth, increase counter (next variable on next level)
-    node->left = createTree(depth - 1, TenYearCHD, variables, counter + 1);
-    node->right = createTree(depth - 1, TenYearCHD, variables, counter + 1);
-    return node;
+    Node* node = createNode(question.second, question.first, variables, TenYearCHD);
+
+    if(question.first == -1) return; // we a leaf node
+    // we a branch node
+    node->left = createTree(new vector<int>(TenYearCHD.begin(), TenYearCHD.end()), variables);
+
 }
+
 
 void printInOrder(Node* root) {
     if (root != nullptr) {
         printInOrder(root->left);
-        cout << root->data << " ";
+        cout << root->classifier << " ";
         printInOrder(root->right);
     }
 }
@@ -236,7 +268,7 @@ void printLevelOrder(Node* root) {
     while(!q.empty()) {
         Node* currentNode = q.front();
         q.pop();
-        cout << currentNode->data << " ";
+        cout << currentNode->classifier << " ";
 
         if (currentNode->left) {
             q.push(currentNode->left);
@@ -252,7 +284,7 @@ void printLevelOrder(Node* root) {
 int predict(Node* root, vector<double>& userInput) {
     int score = 0;
     for (int i = 0; i < userInput.size() - 1; i++) {
-        if (userInput[i] > root->data) {
+        if (userInput[i] > root->classifier) {
             score += 1;
             root = root->right;
         }
