@@ -166,7 +166,7 @@ double ambiguityMetric(vector<int> group){
     // Uses mean squared error.
 
     // avg of set
-    double avg;
+    double avg = 0.0;
     for(int i=0; i<group.size(); i++){
         avg += group.at(i);
     }
@@ -181,6 +181,28 @@ double ambiguityMetric(vector<int> group){
     return sum / group.size();
 }
 
+/* Takes two unsorted lists: forComparisons, and forOutput. Splits the forComparisons list so that items less than classifier
+are in a "left" list and items more than classifier are in a "right" list. Now, return these two split lists as {leftlist, rightlist},
+but return the forOutput values that correspond to the forComparisons values (so if an item in forOutput had the same
+id as an item in forComparisons when the lists were passed to the function, those are "corresponding" items).
+*/
+pair<vector<int>, vector<int>> binarySplit(vector<int>& forComparisons, vector<int>& forOutput, double classifier){
+
+    vector<int> left;
+    vector<int> right;
+
+    for(int i=0; i<forComparisons.size(); i++){
+        if(forComparisons.at(i) < classifier){
+            left.push_back(forOutput.at(i));
+        }else{
+            right.push_back(forOutput.at(i));
+        }
+    }
+
+    return {left, right};
+
+}
+
 /*returns a classifier value (value to compare to) for the best split on this variable, and a value
   for the quality of this variable's best split (in case we want to consider multiple variables to split on), respectively. 
   The higher the latter value, the worse, which is all that is relevant about that value.
@@ -193,21 +215,34 @@ double ambiguityMetric(vector<int> group){
   and return where the split should be made.
 */
 pair<double, double> classifierSingleVar(vector<int>& variable, vector<int>& TenYearCHD) {
-    int MIN_SPLIT_SIZE = 5; //min size for each of the two groups the split would leave.
+    const int MIN_SPLIT_SIZE = 5; //min size for each of the two groups the split would leave.
 
     int patientsN = TenYearCHD.size();
 
-    pair<double, double> classifierAndBestScore = {-1, -1};
-    for(int spliti=MIN_SPLIT_SIZE; spliti<=patientsN-2-MIN_SPLIT_SIZE; spliti++){ //we split the total group between two items. spliti is the left item's index
-        vector<int> group1(TenYearCHD.begin(), TenYearCHD.begin() + spliti + 1);
-        vector<int> group2(TenYearCHD.begin() + spliti + 1, TenYearCHD.end());
-        double splitBadness = ambiguityMetric(group1) + ambiguityMetric(group2);
-        if(classifierAndBestScore.second == -1 || (splitBadness < classifierAndBestScore.second)){
-            classifierAndBestScore = {(TenYearCHD.at(spliti) + TenYearCHD.at(spliti + 1)) / (double) (2), splitBadness};
+    // come up with all potential split points(classifiers) as midpoints between values in variable<> when sorted.
+    vector<int> sortedVariable(variable);
+    sort(sortedVariable.begin(), sortedVariable.end());
+    vector<int> potClassifiers;
+    for(int spliti=MIN_SPLIT_SIZE; spliti<=patientsN-2-MIN_SPLIT_SIZE; spliti++){ //we split the total group between two items in the sorted variable's data list. spliti is the left item's index
+        potClassifiers.push_back((variable.at(spliti) + variable.at(spliti + 1)) / (double) (2)); // midpoint between these two data as classifier?
+    }
+
+    // check all of those potential classifiers to see which is the best
+    pair<double, double> bestClassifierAndScore = {-1, -1};
+    for(int i=0; i<potClassifiers.size(); i++){
+        double classifier = potClassifiers.at(i);
+        
+        // make a split at this classifier using the variable data, and from the corresponding TenYearCHD data, see if it is a good split
+        pair<vector<int>, vector<int>> leftnright = binarySplit(variable, TenYearCHD, classifier);
+        double splitBadness = ambiguityMetric(leftnright.first) + ambiguityMetric(leftnright.second);
+        
+        // update our best potential return value if we found something with a new lowest splitBadness
+        if(bestClassifierAndScore.second == -1 || (splitBadness < bestClassifierAndScore.second)){
+            bestClassifierAndScore = {classifier, splitBadness};
         }
     }
-    return classifierAndBestScore;
-
+    
+    return bestClassifierAndScore;
 }
 
 /*
@@ -230,43 +265,42 @@ pair<double, int> classifierMultiVar(vector<vector<int>>& vars, vector<int>& Ten
     return {bestVarToSplit.second.first, bestVarToSplit.first};
 }
 
-/*
-//returns a classifier value (value to compare to)
-double classifier(vector<int>& variable, vector<int>& TenYearCHD) {
-    vector<int> predictor, nonpredictor;
-    //for each patient in training data set
-    for (int i = 0; i < variable.size(); i++) {
-        //if there was CHD in the next 10 years
-        if (TenYearCHD[i] == 1) {
-            //add the variable value to predictor vector
-            predictor.push_back(variable[i]);
-        }
-        else {
-            nonpredictor.push_back(variable[i]);
-        }
-    }
-    auto p = minmax_element(nonpredictor.begin(), nonpredictor.end());
-    auto t = minmax_element(predictor.begin(),predictor.end());
-    //cout << *p.second << " " << *t.first << endl;
-    double sum = *p.second + *t.first;
-    double result = sum / 2;
-    return result;
-}
-*/
-
-// Generate our tree. 
 Node* createTree(vector<int>& TenYearCHD, vector<vector<int>>& variables){
-    pair<double, int> question = classifierMultiVar(variables, TenYearCHD); // question at this node. "variable < or > a value?"
+    // question at this node. "variable < or > a value?"
+    pair<double, int> classifier = classifierMultiVar(variables, TenYearCHD);
 
-    Node* node = createNode(question.second, question.first, variables, TenYearCHD);
+    // This is recursive. Here, we make ourselves. Later, we'll consider making our children.
+    Node* node = createNode(classifier.second, classifier.first, variables, TenYearCHD);
 
-    if(question.first == -1) return; // we a leaf node
-    // we a branch node
-    node->left = createTree(new vector<int>(TenYearCHD.begin(), TenYearCHD.end()), variables);
+    if(classifier.first == -1) return node; // we a leaf node
+    // else, we a branch node
+
+    // for all of our variables, and for TenYearCHD, see what would happen if we split our classification variable
+    // along its classification value. Whatever happens, that is how we split each of these lists. This is of course just
+    // to carry data related to the same person to the same side, since we'll be sending to left/right nodes soon.
+    vector<int> determiningVariable = variables.at(classifier.second);
+    pair<vector<int>, vector<int>> TenYearCHDSplit = binarySplit(determiningVariable, TenYearCHD, classifier.first);
+    vector<pair<vector<int>, vector<int>>> variablesSplit;
+    for(int v=0; v<variables.size(); v++){
+        variablesSplit.push_back(binarySplit(determiningVariable, variables.at(v), classifier.first));
+    }
+
+    pair<vector<vector<int>>, vector<vector<int>>> variablesSplit2; // same thing but can pass to createTree.
+    for(auto v : variablesSplit){
+        variablesSplit2.first.push_back(v.first);
+        variablesSplit2.second.push_back(v.second);
+
+    }
+    
+    // kids
+    node->left = createTree(TenYearCHDSplit.first, variablesSplit2.first);
+    node->right = createTree(TenYearCHDSplit.second, variablesSplit2.second);
+
+    return node;
 
 }
 
-
+/*
 void printInOrder(Node* root) {
     if (root != nullptr) {
         printInOrder(root->left);
@@ -296,19 +330,31 @@ void printLevelOrder(Node* root) {
     }
     cout << endl;
 }
+*/
 
-int predict(Node* root, vector<double>& userInput) {
-    int score = 0;
-    for (int i = 0; i < userInput.size() - 1; i++) {
-        if (userInput[i] > root->classifier) {
-            score += 1;
-            root = root->right;
+// root node of a tree, and a vector of ints for user data in the same order (and nothing missing or extra) and the same meaning
+// of numbers (eg 1 means male, 0 female (i think)) that we have in our csv.
+double predict(Node* root, vector<int>& variables) {
+    double prediction = 0.0;
+    while(true){
+        // leaf node, so return a prediction
+        if(root->classifiervari == -1) {
+            // by taking average of the TenYearCHDs for all the patients that were in this leaf at training. That's our estimated probability
+            // that somebody new that gets to this class has it.
+            for(int chd : root->TenYearCHDForPatientsHere){
+                prediction += chd;
+            }
+            prediction /= root->TenYearCHDForPatientsHere.size();
+            break;
         }
-        else {
+
+        // branch node, so compare ourselves to the classifier and move along the tree accordingly.
+        int variable = variables.at(root->classifiervari);
+        if(variable < root->classifierval){
             root = root->left;
-        }
+        }else root = root->right;
     }
-    return score;
+    return prediction;
 }
 
 int main() {
@@ -324,51 +370,42 @@ int main() {
     diabetes, totChol, sysBP, diaBP, BMI, heartRate,
     glucose, TenYearCHD, variables);
 
-    //classifiers and constants
-    int cGender, cAge, cEducation, cCurrentSmoker, 
-    cCigsPerDay, cBPMeds, cPrevalentStroke, cPrevalentHyp,
-    cDiabetes, cTotChol, cSysByp, cDiaBP, cBMI, cHeartRate, 
-    cGlucose, cTenYearCHD;
-    int depth = 14;
-    int counter = 0;
-
-    Node* root = createTree(depth, TenYearCHD, variables, counter);
-    printLevelOrder(root);
+    Node* root = createTree(TenYearCHD, variables);
 
     //interact with user
     string name;
-    double iGender, iAge, iEducation, iCurrentSmoker, iCigsPerDay, iBPMeds,
+    int iMale, iAge, iEducation, iCurrentSmoker, iCigsPerDay, iBPMeds,
     iPrevalentStroke, iPrevalentHyp, iDiabetes, iTotChol, iSysBP, iDiaBP, 
-    iBMI, iHeartRate, iGlucose, iTenYearCHD;
-    vector<double> userInput;
+    iBMI, iHeartRate, iGlucose;
+    vector<int> userInput;
 
     cout << "Enter name: ";
     cin >> name;
-    cout << "M or F? (enter 1 or 0): ";
-    cin >> iGender;
-    userInput.push_back(iGender);
+    cout << "Are you male? (Enter 1 or 0 for True/False): ";
+    cin >> iMale;
+    userInput.push_back(iMale);
     cout << "Enter age: ";
     cin >> iAge;
     userInput.push_back(iAge);
     cout << "Enter education level (1-4): ";
     cin >> iEducation;
     userInput.push_back(iEducation);
-    cout << "Are you a current smoker? (enter 1 or 0): ";
+    cout << "Are you a current smoker? (enter 1 or 0 for True/False): ";
     cin >> iCurrentSmoker;
     userInput.push_back(iCurrentSmoker);
     cout << "How many cigs do you smoke per day? ";
     cin >> iCigsPerDay;
     userInput.push_back(iCigsPerDay);
-    cout << "Are you on blood pressure meds? (enter 1 or 0): ";
+    cout << "Are you on blood pressure meds? (enter 1 or 0 for True/False): ";
     cin >> iBPMeds;
     userInput.push_back(iBPMeds);
-    cout << "Do you have prevalent strokes? (enter 1 or 0): ";
+    cout << "Do you have prevalent strokes? (enter 1 or 0 for True/False): ";
     cin >> iPrevalentStroke;
     userInput.push_back(iPrevalentStroke);
-    cout << "Do you have prevalent hypertension? (enter 1 or 0): ";
+    cout << "Do you have prevalent hypertension? (enter 1 or 0 for True/False): ";
     cin >> iPrevalentHyp;
     userInput.push_back(iPrevalentHyp);
-    cout << "Do you have diabetes? (enter 1 or 0): ";
+    cout << "Do you have diabetes? (enter 1 or 0 for True/False): ";
     cin >> iDiabetes;
     userInput.push_back(iDiabetes);
     cout << "What is your total cholesterol? (50-400): ";
@@ -391,8 +428,8 @@ int main() {
     userInput.push_back(iGlucose);
 
     cout << endl << "Predicting chances of coronary heart disease within the next 10 years..." << endl << endl;
-    int score = predict(root, userInput);
-    cout << "Your chances of CHD are: " << (score / 15) * 100 << "%" << endl;
+    double chance = predict(root, userInput);
+    cout << "Your chances of CHD are: " << (int) (chance * 100 + 0.5) << "%" << endl;
 }
 
 
