@@ -46,10 +46,23 @@ userData = pd.DataFrame([userInput], columns = x_data.columns)
 #normalize userData
 userX = (userData - np.min(x_data)) / (np.max(x_data) - np.min(x_data))
 
-#make prediction and output result
-print("Predicting chances of coronary heart disease within the next 10 years...\n")
-prediction = dt.predict(userX)
-if prediction[0] == 1:
+print("\nRisk Factors:")
+riskFactors = 0
+totalPredictors = len(x_data.columns)
+
+#compare user data against data file and output the risk level of each feature
+for i, feature in enumerate(x_data.columns):
+    if userX[feature].iloc[0] >= x[feature].mean():
+        print(f"{feature}: High Risk")
+        riskFactors += 1
+    else:
+        print(f"{feature}: Low Risk")
+
+# Calculate risk score
+riskScore = (riskFactors / totalPredictors) * 100
+print(f"\nRisk Score: {riskScore:.2f}%")
+
+if riskScore > 50:
     print("You have a high chance of coronary heart disease.")
 else:
     print("You have a low chance of coronary heart disease.")
