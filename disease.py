@@ -5,7 +5,7 @@ from sklearn.tree import DecisionTreeClassifier
 from sklearn.model_selection import train_test_split
 from sklearn.metrics import accuracy_score
 
-data = pd.read_csv("patientdata.csv")
+data = pd.read_csv("cleandata.csv")
 #X features and y target variable
 y = data.TenYearCHD.values
 #normalization
@@ -16,10 +16,12 @@ x=(x_data-np.min(x_data)) / (np.max(x_data) - np.min(x_data))
 from sklearn.model_selection import train_test_split
 x_train, x_test, y_train, y_test = train_test_split(x, y, test_size=0.15, random_state=42)
 
-from sklearn.tree import DecisionTreeClassifier
-dt = DecisionTreeClassifier()
+from sklearn.tree import DecisionTreeRegressor
+dt = DecisionTreeRegressor(min_samples_leaf=15, random_state=42)
+print("Please wait while I construct regression tree to be used for predictions...")
 dt.fit(x_train, y_train)
-print("score: ", dt.score(x_test, y_test))
+print("...Done")
+#print("score: ", dt.score(x_test, y_test))
 
 #ask user to input information
 userInput = []
@@ -46,23 +48,6 @@ userData = pd.DataFrame([userInput], columns = x_data.columns)
 #normalize userData
 userX = (userData - np.min(x_data)) / (np.max(x_data) - np.min(x_data))
 
-print("\nRisk Factors:")
-riskFactors = 0
-totalPredictors = len(x_data.columns)
-
-#compare user data against data file and output the risk level of each feature
-for i, feature in enumerate(x_data.columns):
-    if userX[feature].iloc[0] >= x[feature].mean():
-        print(f"{feature}: High Risk")
-        riskFactors += 1
-    else:
-        print(f"{feature}: Low Risk")
-
 # Calculate risk score
-riskScore = (riskFactors / totalPredictors) * 100
-print(f"\nRisk Score: {riskScore:.2f}%")
-
-if riskScore > 50:
-    print("You have a high chance of coronary heart disease.")
-else:
-    print("You have a low chance of coronary heart disease.")
+riskScore = dt.predict(userX)[0] * 100
+print(f"\nRisk Score: {riskScore:.0f}% chance of developing Coronary Artery Disease within the next 10 years.")
