@@ -1,4 +1,14 @@
 /*
+This file uses a csv of 15 variables for patient attributes (sex, age, ...) and one variable (0 or 1) for if this patient
+developed Coronary Heart Disease within 10 years of the data being recorded, on each line.
+It constructs a regression tree from this data. At the end of construction, the leaf nodes will give us the proportion of patients
+in various distinct categories (eg, high bmi, low age, and many other factor distinctions, for one leaf, or moderate bmi, low age, ..., 
+for another leaf). 
+We then take a new patient's 15 variables on cin, follow the regression tree (each node gives a variable and a value to classify < or > than),
+get the class we fall into, and return the new patient's estimated chance of CHD based on the fact that they are similar to this one class.
+The regression tree automatically chooses the best question to ask at each node so that we split groups along values that seem to be genuine
+classification differences in risk of CHD, in the best way possible.
+
 It's based on the standard regression tree algorithm. You start with a node with all predictive data for all patients in it,
 and all target data for all patients. You brute force all variables and all positions in all variables to find the one that would make
 the best split, meaning, we calculate how well each split seems to say something about the data - how strongly correlated to one value for
