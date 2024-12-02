@@ -1,12 +1,5 @@
 /*
-<<<<<<< Updated upstream
-Explanation:
-very in-progress. It's based on the standard regression tree algorithm. You start with a node with all predictive data for all patients in it,
-=======
-todo: better description at top. Name is not used but asked for on cin, but I personally like that.
-
 It's based on the standard regression tree algorithm. You start with a node with all predictive data for all patients in it,
->>>>>>> Stashed changes
 and all target data for all patients. You brute force all variables and all positions in all variables to find the one that would make
 the best split, meaning, we calculate how well each split seems to say something about the data - how strongly correlated to one value for
 the target one half would be, and the other for the other half. Choose the best split like that... variable and point that makes best split.
@@ -27,8 +20,6 @@ new patient on the console and asking for a probability.
 #include <fstream>
 #include <string>
 #include <queue>
-#include <set>
-#include <iomanip>
 using namespace std;
 
 
@@ -223,16 +214,16 @@ pair<vector<int>, vector<int>> binarySplit(vector<int>& forComparisons, vector<i
   and return where the split should be made.
 */
 pair<double, double> classifierSingleVar(vector<int>& variable, vector<int>& TenYearCHD) {
-    const int MIN_SPLIT_CHILD_SIZE = 20; //min size for each of the two groups the split would leave.
+    const int MIN_SPLIT_SIZE = 5; //min size for each of the two groups the split would leave.
 
     int patientsN = TenYearCHD.size();
 
-    // come up with all potential split points(classifiers) as midpoints between values in variable<> when sorted and duplicates removed.
-    set<int> sortedVariable(variable.begin(), variable.end());
-    vector<double> potClassifiers;
-    for (set<int>::iterator splitLItem = sortedVariable.begin(); splitLItem != prev(sortedVariable.end()); splitLItem++) {
-        set<int>::iterator splitRItem = next(splitLItem);
-        potClassifiers.push_back((*splitLItem + *splitRItem) / (double) (2)); // midpoint between these two data as classifier?
+    // come up with all potential split points(classifiers) as midpoints between values in variable<> when sorted.
+    vector<int> sortedVariable(variable);
+    sort(sortedVariable.begin(), sortedVariable.end());
+    vector<int> potClassifiers;
+    for(int spliti=MIN_SPLIT_SIZE; spliti<=patientsN-2-MIN_SPLIT_SIZE; spliti++){ //we split the total group between two items in the sorted variable's data list. spliti is the left item's index
+        potClassifiers.push_back((variable.at(spliti) + variable.at(spliti + 1)) / (double) (2)); // midpoint between these two data as classifier?
     }
 
     // check all of those potential classifiers to see which is the best
@@ -240,14 +231,11 @@ pair<double, double> classifierSingleVar(vector<int>& variable, vector<int>& Ten
     for(int i=0; i<potClassifiers.size(); i++){
         double classifier = potClassifiers.at(i);
         
-        // make a split at this classifier in the variable data.
+        // make a split at this classifier using the variable data, and from the corresponding TenYearCHD data, see if it is a good split
         pair<vector<int>, vector<int>> leftnright = binarySplit(variable, TenYearCHD, classifier);
-        // If it does not result in children of adequate size, discard it.
-        if(leftnright.first.size() < MIN_SPLIT_CHILD_SIZE || leftnright.second.size() < MIN_SPLIT_CHILD_SIZE)continue;
-        
-        // from the TenYearCHD data corresponding to each side of the split on our variable data, calculate numerically how good a split
-        // it was. update our best potential return value if we found a new best split.
         double splitBadness = ambiguityMetric(leftnright.first) + ambiguityMetric(leftnright.second);
+        
+        // update our best potential return value if we found something with a new lowest splitBadness
         if(bestClassifierAndScore.second == -1 || (splitBadness < bestClassifierAndScore.second)){
             bestClassifierAndScore = {classifier, splitBadness};
         }
@@ -269,7 +257,7 @@ pair<double, int> classifierMultiVar(vector<vector<int>>& vars, vector<int>& Ten
     pair<int, pair<double, double>> bestVarToSplit = {-1, {-1, -1}}; // index of var, {classifier for its best split, badness of its best split}
     for(int v=0; v<vars.size(); v++){
         pair<double, double> classifierAndBestScore = classifierSingleVar(vars.at(v), TenYearCHD);
-        if(classifierAndBestScore.first != -1 && (bestVarToSplit.first == -1 || (classifierAndBestScore.second < bestVarToSplit.second.second))){
+        if(bestVarToSplit.first == -1 || (classifierAndBestScore.second < bestVarToSplit.second.second)){
             bestVarToSplit = {v, classifierAndBestScore};
         }
     }
@@ -302,9 +290,7 @@ Node* createTree(vector<int>& TenYearCHD, vector<vector<int>>& variables){
         variablesSplit2.second.push_back(v.second);
 
     }
-
-    //cout << "splitting based on var #" << classifier.second << " around " << classifier.first << ": " << TenYearCHDSplit.first.size() << " < | > " << TenYearCHDSplit.second.size() << endl;
-
+    
     // kids
     node->left = createTree(TenYearCHDSplit.first, variablesSplit2.first);
     node->right = createTree(TenYearCHDSplit.second, variablesSplit2.second);
@@ -349,7 +335,6 @@ void printLevelOrder(Node* root) {
 // of numbers (eg 1 means male, 0 female (i think)) that we have in our csv.
 double predict(Node* root, vector<int>& variables) {
     double prediction = 0.0;
-    int level = 0;
     while(true){
         // leaf node, so return a prediction
         if(root->classifiervari == -1) {
@@ -366,33 +351,9 @@ double predict(Node* root, vector<int>& variables) {
         int variable = variables.at(root->classifiervari);
         if(variable < root->classifierval){
             root = root->left;
-        }else {
-            root = root->right;
-        }
-        level++;
+        }else root = root->right;
     }
     return prediction;
-}
-
-// used in main to help with taking user input.
-// we ask on command line stuff like "Enter education level (1-4): ".
-// This has to be in a range, and if not, we'll re-ask it. So, to make this process repeatable, we define
-// questions with this, then ask questions with the same code.
-struct VariableInputInformation{
-    // in the question "Enter education level (1-4): "...
-    string query; // ...that string exactly...
-    int* real; // ...the actual code variable for education level...
-    int min; // ...1...
-    int max; // ...4.
-};
-
-// grab a positive int that we want in a certain range (inclusive, inclusive) from cin. If it is out of range, return -1 for error.
-int cinIntPosInRange(int min, int max){
-    int val;
-    cin >> val;
-
-    if(val < min || val > max)return -1;
-    return val;
 }
 
 int main() {
@@ -408,62 +369,64 @@ int main() {
     diabetes, totChol, sysBP, diaBP, BMI, heartRate,
     glucose, TenYearCHD, variables);
 
-    cout << "Okay, generating tree..." << endl;
     Node* root = createTree(TenYearCHD, variables);
-    cout << "...Done!" << endl;
 
     //interact with user
     string name;
-    int iMale=-1, iAge=-1, iEducation=-1, iCurrentSmoker=-1, iCigsPerDay=-1, iBPMeds,
-    iPrevalentStroke=-1, iPrevalentHyp=-1, iDiabetes=-1, iTotChol=-1, iSysBP=-1, iDiaBP=-1, 
-    iBMI=-1, iHeartRate=-1, iGlucose=-1;
+    int iMale, iAge, iEducation, iCurrentSmoker, iCigsPerDay, iBPMeds,
+    iPrevalentStroke, iPrevalentHyp, iDiabetes, iTotChol, iSysBP, iDiaBP, 
+    iBMI, iHeartRate, iGlucose;
     vector<int> userInput;
-    VariableInputInformation questions[] = { // will all be output with a ": " after. 
-        {"Are you male", &iMale, 0, 1},
-        {"Enter age", &iAge, -1, -1},
-        {"Enter education level", &iEducation, 1, 4},
-        {"Are you a current smoker", &iCurrentSmoker, 0, 1},
-        {"How many cigs do you smoke per day", &iCigsPerDay, -1, -1},
-        {"Are you on blood pressure meds", &iBPMeds, 0, 1},
-        {"Do you have prevalent strokes", &iPrevalentStroke, 0, 1},
-        {"Do you have prevalent hypertension", &iPrevalentHyp, 0, 1},
-        {"Do you have diabetes", &iDiabetes, 0, 1},
-        {"What is your total cholesterol", &iTotChol, 50, 400},
-        {"What is your systolic blood pressure", &iSysBP, 50, 200},
-        {"What is your diastolic blood pressure", &iDiaBP, 40, 200},
-        {"What is your body mass index", &iBMI, 15, 50},
-        {"What is your heart rate", &iHeartRate, 20, 200},
-        {"What is your glucose level", &iGlucose, 50, 200}
-    };
-    
+
     cout << "Enter name: ";
     cin >> name;
-    
-    // ask all my questions and get all my user input health data.
-    for(VariableInputInformation question : questions){
-        // until i get valid input...
-        while(*question.real == -1){
-            // output question string
-            cout << question.query;
-            if(question.min != -1 && question.max != -1)
-                cout << "(" << question.min << (question.max - question.min == 1 ? " or " : "-") << question.max << ")";
-            cout << ": ";
+    cout << "Are you male? (Enter 1 or 0 for True/False): ";
+    cin >> iMale;
+    userInput.push_back(iMale);
+    cout << "Enter age: ";
+    cin >> iAge;
+    userInput.push_back(iAge);
+    cout << "Enter education level (1-4): ";
+    cin >> iEducation;
+    userInput.push_back(iEducation);
+    cout << "Are you a current smoker? (enter 1 or 0 for True/False): ";
+    cin >> iCurrentSmoker;
+    userInput.push_back(iCurrentSmoker);
+    cout << "How many cigs do you smoke per day? ";
+    cin >> iCigsPerDay;
+    userInput.push_back(iCigsPerDay);
+    cout << "Are you on blood pressure meds? (enter 1 or 0 for True/False): ";
+    cin >> iBPMeds;
+    userInput.push_back(iBPMeds);
+    cout << "Do you have prevalent strokes? (enter 1 or 0 for True/False): ";
+    cin >> iPrevalentStroke;
+    userInput.push_back(iPrevalentStroke);
+    cout << "Do you have prevalent hypertension? (enter 1 or 0 for True/False): ";
+    cin >> iPrevalentHyp;
+    userInput.push_back(iPrevalentHyp);
+    cout << "Do you have diabetes? (enter 1 or 0 for True/False): ";
+    cin >> iDiabetes;
+    userInput.push_back(iDiabetes);
+    cout << "What is your total cholesterol? (50-400): ";
+    cin >> iTotChol;
+    userInput.push_back(iTotChol);
+    cout << "What is your systolic blood pressure? (50-200): ";
+    cin >> iSysBP;
+    userInput.push_back(iSysBP);
+    cout << "What is your diastolic blood pressure? (40-200): ";
+    cin >> iDiaBP;
+    userInput.push_back(iDiaBP);
+    cout << "What is your body mass index? (15-50): ";
+    cin >> iBMI;
+    userInput.push_back(iBMI);
+    cout << "What is your heart rate? (20-200): ";
+    cin >> iHeartRate;
+    userInput.push_back(iHeartRate);
+    cout << "What is your glucose level? (50-200): ";
+    cin >> iGlucose;
+    userInput.push_back(iGlucose);
 
-            // try to take input
-            if(question.min == -1 || question.max == -1) 
-                cin >> *question.real;
-            else 
-                *question.real = cinIntPosInRange(question.min, question.max);
-        }
-        userInput.push_back(*question.real);
-    }
-    
-    // predict chance and output it.
     cout << endl << "Predicting chances of coronary heart disease within the next 10 years..." << endl << endl;
     double chance = predict(root, userInput);
     cout << "Your chances of CHD are: " << (int) (chance * 100 + 0.5) << "%" << endl;
-
 }
-
-
-
